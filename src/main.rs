@@ -18,12 +18,12 @@ fn b_01_21(use_functional: bool) -> usize {
     let signal = parse_txt_file_to_int_vec("C:/Programming/advent_of_code_rust/input/day1a.txt");
     
     if use_functional {
-        let count = signal.windows(3)
+        let count = signal
+        .windows(3)
         .map(|x| x[0] + x[1] + x[2])
         .collect::<Vec<i32>>()
         .windows(2)
-        .map(|x| x[1] - x[0])
-        .filter(|&x| x > 0)
+        .filter(|x| x[0] < x[1])
         .count();
     
         println!("b_01_21: Successfully found {} positive sum deltas", count);
@@ -70,8 +70,8 @@ fn a_01_21(use_functional: bool) -> usize{
 }
 
 fn main() -> std::io::Result<()> {
-    a_01_21(true);
-    b_01_21(true);    
+    a_01_21(false);
+    b_01_21(false);    
     
     Ok(())
 }
