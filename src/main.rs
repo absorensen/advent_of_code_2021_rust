@@ -1,18 +1,13 @@
 use std::fs::File;
 use std::io::{prelude::*};
 
+
 fn parse_txt_file_to_int_vec(path: &str) -> Vec<i32>{
     let mut file = File::open(path).unwrap();
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
 
-    // Refactor to iterator
-    let mut result : Vec<i32> = Vec::<i32>::new();
-    for s in contents.lines() {
-        result.push(s.parse::<i32>().unwrap());
-    }
-
-    result
+    contents.lines().map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>()
 }
 
 fn parse_txt_file_to_str_tokens(path: &str) -> Vec<Vec<String>>{
@@ -20,12 +15,7 @@ fn parse_txt_file_to_str_tokens(path: &str) -> Vec<Vec<String>>{
     let mut contents = String::new();
     file.read_to_string(&mut contents).unwrap();
 
-    let mut result : Vec<Vec<String>> = Vec::<Vec<String>>::new();
-    for s in contents.lines() {
-        result.push(s.split(' ').map(|st| st.to_string()).collect());
-    }
-
-    result
+    contents.lines().map(|line| line.split(" ").map(|token| token.to_string()).collect()).collect()
 }
 
 fn b_02_21(use_functional: bool) -> i32 {
