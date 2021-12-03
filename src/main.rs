@@ -1,6 +1,12 @@
 use std::fs::File;
 use std::io::{prelude::*};
 
+fn main() -> std::io::Result<()> {
+    a_03_21(true);
+    b_03_21(true);    
+    
+    Ok(())
+}
 
 fn parse_txt_file_to_int_vec(path: &str) -> Vec<i32>{
     let mut file = File::open(path).unwrap();
@@ -26,7 +32,125 @@ fn parse_txt_file_to_str_tokens(path: &str) -> Vec<Vec<String>>{
         .collect()
 }
 
-fn b_03_21(use_functional: bool) -> i32 {
+fn create_enumerated_vector(size:u32) -> Vec<u32> {
+    (0..size).collect::<Vec<_>>()
+}
+
+fn bitvector_to_base_10(bits:&Vec<u32>) -> u32 {
+    let mut result: u32 = 0;
+    let number_of_digits = bits.len();
+    for bit_index in 0..number_of_digits {
+        if bits[bit_index] == 1 {
+            let move_by: usize = number_of_digits - bit_index - 1;
+            result += 1 << move_by;
+        }
+    }
+    result
+}
+
+fn parse_txt_to_bit_message(path: &str) -> Vec<Vec<u32>> {
+    let strings = parse_txt_file_to_str_tokens(path);
+    let number_of_digits = strings[0][0].len();
+    let number_of_lines = strings.len() as u32;
+
+    let mut bit_message = Vec::<Vec<u32>>::new();
+    bit_message.resize(number_of_lines as usize, Vec::<u32>::new());
+    for line_index in 0..number_of_lines {
+        let mut char_iterator = strings[line_index as usize][0].chars();
+        bit_message[line_index as usize].resize(number_of_digits, u32::MAX);
+        for bit_index in 0..number_of_digits{
+            bit_message[line_index as usize][bit_index as usize] = char_iterator.next().unwrap().to_digit(10).unwrap();
+        }
+    }
+
+    bit_message
+}
+
+fn get_valid_index_values(valid_indices: &Vec<u32>, bit_message: &Vec<Vec<u32>>) -> Vec<u32>{
+    let number_of_lines = valid_indices.len();
+    for line_index in 0..number_of_lines {
+        if valid_indices[line_index] != u32::MAX {
+            return bit_message[line_index].clone()
+        } 
+    }
+
+    Vec::<u32>::new()
+}
+
+fn b_03_21(use_functional: bool) -> u32 {
+    let path = "C:/Programming/advent_of_code_rust/input/day3.txt";
+
+    if use_functional {
+        let bit_message = parse_txt_to_bit_message(path);
+        let number_of_digits = bit_message[0].len();
+        let number_of_lines = bit_message.len();
+
+        let mut valid_indices_scrubber = create_enumerated_vector(number_of_lines as u32);
+        let mut valid_indices_oxygen = create_enumerated_vector(number_of_lines as u32);
+        let mut valid_oxygen_count:u32 = number_of_lines as u32;
+        let mut valid_scrubber_count:u32 = number_of_lines as u32;
+
+        for bit_index in 0..number_of_digits{
+            let mut most_common_oxygen:u32 = 0;
+            let mut most_common_scrubber:u32 = 0;
+            for line_index in 0..number_of_lines as usize {
+                let bit = bit_message[line_index][bit_index];
+    
+                if bit == 1 && valid_indices_oxygen[line_index] != u32::MAX {
+                    most_common_oxygen += 1;
+                }
+    
+                if bit == 1 && valid_indices_scrubber[line_index] != u32::MAX {
+                    most_common_scrubber += 1;
+                }
+            }
+    
+            if most_common_oxygen >= valid_oxygen_count - most_common_oxygen {
+                most_common_oxygen = 1;
+            } else {
+                most_common_oxygen = 0;
+            }
+    
+            if most_common_scrubber >= valid_scrubber_count - most_common_scrubber {
+                most_common_scrubber = 1;
+            } else {
+                most_common_scrubber = 0;
+            }
+    
+            for line_index in 0..number_of_lines as usize {
+                let bit = bit_message[line_index][bit_index];
+    
+                if valid_oxygen_count > 1 && valid_indices_oxygen[line_index] != u32::MAX {
+                    if most_common_oxygen != bit {
+                        valid_indices_oxygen[line_index] = u32::MAX;
+                        valid_oxygen_count -= 1;
+                    }
+                }
+    
+                if valid_scrubber_count > 1 && valid_indices_scrubber[line_index] != u32::MAX {
+                    if most_common_scrubber == bit {
+                        valid_indices_scrubber[line_index] = u32::MAX;
+                        valid_scrubber_count -= 1;
+                    }
+                }
+            }
+    
+            if valid_scrubber_count == 1 && valid_oxygen_count == 1 {
+                break;
+            }
+        }
+
+        let scrubber_bits:Vec<u32> = get_valid_index_values(&valid_indices_scrubber, &bit_message);
+        let scrubber_rating:u32 = bitvector_to_base_10(&scrubber_bits);
+
+        let oxygen_bits:Vec<u32> = get_valid_index_values(&valid_indices_oxygen, &bit_message);
+        let oxygen_rating:u32 = bitvector_to_base_10(&oxygen_bits);
+    
+        println!("b_03_21: Scrubber Rating: {} Oxygen Rating: {} Product: {}", scrubber_rating, oxygen_rating, scrubber_rating * oxygen_rating);
+        scrubber_rating * oxygen_rating
+
+    } else {
+
     let status_values = parse_txt_file_to_str_tokens("C:/Programming/advent_of_code_rust/input/day3.txt");
 
     let number_of_digits = status_values[0][0].len();
@@ -140,51 +264,85 @@ fn b_03_21(use_functional: bool) -> i32 {
     println!("b_03_21: Scrubber Rating: {} Oxygen Rating: {} Product: {}", scrubber_rating, oxygen_rating, scrubber_rating * oxygen_rating);
     scrubber_rating * oxygen_rating
 }
+}
 
 fn a_03_21(use_functional: bool) -> u32 {
-    let status_values = parse_txt_file_to_str_tokens("C:/Programming/advent_of_code_rust/input/day3.txt");
+    let path = "C:/Programming/advent_of_code_rust/input/day3.txt";
 
-    let number_of_digits = status_values[0][0].len();
-    let number_of_lines = status_values.len() as u32;
-    let mut number_of_ones:Vec<u32> = vec![0; number_of_digits];
-    for status in status_values {
-        let mut char_iterator = status[0].chars();
-        for index in 0..number_of_digits {
-            let digit = char_iterator.next().unwrap().to_digit(10).unwrap();
-            if digit == 1 {
-                number_of_ones[index] += 1;
+    if use_functional {
+        
+        let bit_message = parse_txt_to_bit_message(path);
+        let number_of_digits = bit_message[0].len();
+        let number_of_lines = bit_message.len();
+        let mut number_of_ones:Vec<u32> = vec![0; number_of_digits];
+
+        for line_index in 0..number_of_lines {
+            let bits = &bit_message[line_index];
+            for bit_index in 0..number_of_digits {
+                let bit = &bits[bit_index];
+                if *bit == 1 {
+                    number_of_ones[bit_index] += 1;
+                }
             }
         }
+
+        let halfway:u32 = number_of_lines as u32 / 2;
+        let gamma_bits:Vec<u32> = number_of_ones.iter().map(|x| if x > &halfway {1} else {0}).collect();
+        let epsilon_bits:Vec<u32> = number_of_ones.iter().map(|x| if x < &halfway {1} else {0}).collect();
+
+        let gamma:u32 = bitvector_to_base_10(&gamma_bits);
+        let epsilon:u32 = bitvector_to_base_10(&epsilon_bits);
+
+        println!("a_03_21: Gamma: {} Epsilon: {} Product: {}", gamma, epsilon, gamma * epsilon);
+        (gamma * epsilon) as u32
+
+    } else {
+        let status_values = parse_txt_file_to_str_tokens(path);
+
+        let number_of_digits = status_values[0][0].len();
+        let number_of_lines = status_values.len() as u32;
+        let mut number_of_ones:Vec<u32> = vec![0; number_of_digits];
+        for status in status_values {
+            let mut char_iterator = status[0].chars();
+            for index in 0..number_of_digits {
+                let digit = char_iterator.next().unwrap().to_digit(10).unwrap();
+                if digit == 1 {
+                    number_of_ones[index] += 1;
+                }
+            }
+        }
+
+
+
+        let mut gamma_bits:Vec<u32> = vec![0; number_of_digits];
+        let mut epsilon_bits:Vec<u32> = vec![0; number_of_digits];
+        for index in 0..number_of_digits {
+            if number_of_ones[index] > number_of_lines / 2 { 
+                gamma_bits[index] = 1; 
+            }
+
+            if number_of_ones[index] < number_of_lines / 2 { 
+                epsilon_bits[index] = 1; 
+            }
+        }
+
+        let mut gamma:u32 = 0;
+        let mut epsilon:u32 = 0;
+
+        for bit_index in 0..number_of_digits {
+            if gamma_bits[bit_index] == 1 {
+                let move_by: usize = number_of_digits - bit_index - 1;
+                gamma += 1 << move_by;
+            }
+            if epsilon_bits[bit_index] == 1 {
+                let move_by: usize = number_of_digits - bit_index - 1;
+                epsilon += 1 << move_by;
+            }
+        }
+
+        println!("a_03_21: Gamma: {} Epsilon: {} Product: {}", gamma, epsilon, gamma * epsilon);
+        (gamma * epsilon) as u32
     }
-
-    let mut gamma_bits:Vec<u32> = vec![0; number_of_digits];
-    let mut epsilon_bits:Vec<u32> = vec![0; number_of_digits];
-    for index in 0..number_of_digits {
-        if number_of_ones[index] > number_of_lines / 2 { 
-            gamma_bits[index] = 1; 
-        }
-
-        if number_of_ones[index] < number_of_lines / 2 { 
-            epsilon_bits[index] = 1; 
-        }
-    }
-
-    let mut gamma:u32 = 0;
-    let mut epsilon:u32 = 0;
-
-    for bit_index in 0..number_of_digits {
-        if gamma_bits[bit_index] == 1 {
-            let move_by: usize = number_of_digits - bit_index - 1;
-            gamma += 1 << move_by;
-        }
-        if epsilon_bits[bit_index] == 1 {
-            let move_by: usize = number_of_digits - bit_index - 1;
-            epsilon += 1 << move_by;
-        }
-    }
-
-    println!("a_03_21: Gamma: {} Epsilon: {} Product: {}", gamma, epsilon, gamma * epsilon);
-    (gamma * epsilon) as u32
 }
 
 fn b_02_21(use_functional: bool) -> i32 {
@@ -288,12 +446,24 @@ fn a_01_21(use_functional: bool) -> usize{
     }
 }
 
-fn main() -> std::io::Result<()> {
-    a_03_21(false);
-    b_03_21(false);    
-    
-    Ok(())
+
+
+
+
+
+
+#[test]
+fn test_b_03_21() {
+    assert_eq!(b_03_21(true), 1370737);
+    assert_eq!(b_03_21(false), 1370737);
 }
+
+#[test]
+fn test_a_03_21() {
+    assert_eq!(a_03_21(true), 775304);
+    assert_eq!(a_03_21(false), 775304);
+}
+
 
 #[test]
 fn test_b_02_21() {
