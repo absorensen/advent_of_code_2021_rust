@@ -1,58 +1,79 @@
+#![allow(dead_code, unused_assignments, unused_variables)]
+
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
 fn main() -> std::io::Result<()> {
+    let now = std::time::Instant::now();
     a_04_21(false);
+    let elapsed_time = now.elapsed();
+    println!("Running function a took {} microseconds.", elapsed_time.as_micros());
+
+    let now = std::time::Instant::now();
     b_04_21(false);    
-    
+    let elapsed_time = now.elapsed();
+    println!("Running function b took {} microseconds.", elapsed_time.as_micros());
+
     Ok(())
 }
 
+struct BingoBoardElement {
+    value: i32,
+    marked: bool,
+}
+
 struct BingoBoard {
-    rows: Vec<Vec<i32>>,
-    drawn: Vec<Vec<bool>>,
+    number_of_rows: usize,
+    number_of_columns: usize,
+    elements: Vec<BingoBoardElement>,
 }
 
 impl BingoBoard {
-    fn update(&mut self, number: i32) -> () {
-        let number_of_rows = self.rows.len();
-        let number_of_columns = self.rows[0].len();
+    #[inline(always)]
+    fn mut_index(&mut self, row:usize, column:usize) -> &mut BingoBoardElement {
+        &mut self.elements[row * self.number_of_columns + column]
+    }
 
-        for row in 0..number_of_rows {
-            for column in 0..number_of_columns {
-                if self.rows[row][column] == number {
-                    self.drawn[row][column] = true;
+    #[inline(always)]
+    fn index(&self, row:usize, column:usize) -> & BingoBoardElement {
+        &self.elements[row * self.number_of_columns + column]
+    }
+
+
+    fn update(&mut self, number: i32) -> () {
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                if self.index(row, column).value == number {
+                    self.mut_index(row, column).marked = true;
                 }
             }
         }
     } 
 
+    #[inline(always)]
     fn has_won(&self) -> bool {
-        let number_of_rows = self.rows.len();
-        let number_of_columns = self.rows[0].len();
-
-        // Check all columns
-        for row in 0..number_of_rows {
+        // Check all rows
+        for row in 0..self.number_of_rows {
             let mut correct = 0;
-            for column in 0..number_of_columns {
-                if self.drawn[row][column] {
+            for column in 0..self.number_of_columns {
+                if self.index(row, column).marked {
                     correct += 1;
                 }
             }
-            if correct == number_of_columns {
+            if correct == self.number_of_columns {
                 return true
             }
         }
 
         // Check all columns
-        for column in 0..number_of_columns {
+        for column in 0..self.number_of_columns {
             let mut correct = 0;
-            for row in 0..number_of_rows {
-                if self.drawn[row][column] {
+            for row in 0..self.number_of_rows {
+                if self.index(row, column).marked {
                     correct += 1;
                 }
             }
-            if correct == number_of_rows {
+            if correct == self.number_of_rows {
                 return true
             }
         }
@@ -60,29 +81,19 @@ impl BingoBoard {
         false
     }
 
+    #[inline(always)]
     fn calculate_score(&self) -> i32 {
-        let mut score: i32 = 0;
-
-        let number_of_rows = self.rows.len();
-        let number_of_columns = self.rows[0].len();
-
-
-        for row in 0..number_of_rows {
-            for column in 0..number_of_columns {
-                if !self.drawn[row][column] {
-                    score += self.rows[row][column];
-                }
-            }
-        }
-
-        score
+        self.elements.iter()
+            .map(|element| 
+                    if element.marked { 0 } else { element.value }
+                )
+            .sum()
     }
 }
 
 struct BingoSetup {
     boards: Vec<BingoBoard>,
     drawn_numbers: Vec<i32>,
-    elements_per_row: usize,
 }
 
 fn parse_txt_to_bingo_setup(path:&str) -> BingoSetup {
@@ -93,7 +104,7 @@ fn parse_txt_to_bingo_setup(path:&str) -> BingoSetup {
     let mut drawn_numbers: Vec<i32> = Vec::<i32>::new();
     let mut board_lines_read: usize = 5;
     let mut boards_read: usize = 0;
-    let mut elements_per_row: usize = 5;
+    let elements_per_row: usize = 5;
     for (index, line) in reader.lines().enumerate(){
         let line = line.unwrap();
 
@@ -108,21 +119,17 @@ fn parse_txt_to_bingo_setup(path:&str) -> BingoSetup {
         }
         
         if board_lines_read == 0 {
-            boards.push(BingoBoard{rows:Vec::<Vec<i32>>::new(), drawn:Vec::<Vec<bool>>::new()});
+            boards.push(BingoBoard{number_of_rows : elements_per_row, number_of_columns : elements_per_row, elements:Vec::<BingoBoardElement>::new()});
             boards_read += 1;
         }
 
         let line_numbers = line.split_whitespace().map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>();
-        boards[boards_read - 1].rows.push(line_numbers);
-
-        let mut draw_numbers = Vec::<bool>::new();
-        draw_numbers.resize(elements_per_row, false);
-        boards[boards_read - 1].drawn.push(draw_numbers);
-   
+        let mut elements : Vec<BingoBoardElement> = line_numbers.iter().map(|x| BingoBoardElement{ value : *x , marked : false}).collect();
+        boards[boards_read - 1].elements.append(&mut elements);
         board_lines_read += 1;
     }
 
-   BingoSetup{boards, drawn_numbers, elements_per_row:elements_per_row}
+   BingoSetup{boards, drawn_numbers}
 }
 
 fn parse_txt_file_to_int_vec(path: &str) -> Vec<i32>{
@@ -237,9 +244,9 @@ fn b_04_21(use_functional: bool) -> i32 {
 
 
 fn a_04_21(use_functional: bool) -> i32{
-    let mut bingo_boards = parse_txt_to_bingo_setup("C:/Programming/advent_of_code_rust/input/day4.txt");
+    let bingo_boards = parse_txt_to_bingo_setup("C:/Programming/advent_of_code_rust/input/day4.txt");
     let mut boards = bingo_boards.boards;
-    let mut drawn_numbers = bingo_boards.drawn_numbers;
+    let drawn_numbers = bingo_boards.drawn_numbers;
     let mut winner_found = false;
     let mut winning_score: i32 = 0;
     for drawn_number in drawn_numbers {
@@ -639,7 +646,17 @@ fn a_01_21(use_functional: bool) -> usize{
 
 
 
+#[test]
+fn test_b_04_21() {
+    assert_eq!(b_04_21(true), 31755);
+    assert_eq!(b_04_21(false), 31755);
+}
 
+#[test]
+fn test_a_04_21() {
+    assert_eq!(a_04_21(true), 6592);
+    assert_eq!(a_04_21(false), 6592);
+}
 
 #[test]
 fn test_b_03_21() {
