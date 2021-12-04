@@ -1,11 +1,128 @@
 use std::fs::File;
-use std::io::{prelude::*};
+use std::io::{prelude::*, BufReader};
 
 fn main() -> std::io::Result<()> {
-    a_03_21(true);
-    b_03_21(true);    
+    a_04_21(false);
+    b_04_21(false);    
     
     Ok(())
+}
+
+struct BingoBoard {
+    rows: Vec<Vec<i32>>,
+    drawn: Vec<Vec<bool>>,
+}
+
+impl BingoBoard {
+    fn update(&mut self, number: i32) -> () {
+        let number_of_rows = self.rows.len();
+        let number_of_columns = self.rows[0].len();
+
+        for row in 0..number_of_rows {
+            for column in 0..number_of_columns {
+                if self.rows[row][column] == number {
+                    self.drawn[row][column] = true;
+                }
+            }
+        }
+    } 
+
+    fn has_won(&self) -> bool {
+        let number_of_rows = self.rows.len();
+        let number_of_columns = self.rows[0].len();
+
+        // Check all columns
+        for row in 0..number_of_rows {
+            let mut correct = 0;
+            for column in 0..number_of_columns {
+                if self.drawn[row][column] {
+                    correct += 1;
+                }
+            }
+            if correct == number_of_columns {
+                return true
+            }
+        }
+
+        // Check all columns
+        for column in 0..number_of_columns {
+            let mut correct = 0;
+            for row in 0..number_of_rows {
+                if self.drawn[row][column] {
+                    correct += 1;
+                }
+            }
+            if correct == number_of_rows {
+                return true
+            }
+        }
+
+        false
+    }
+
+    fn calculate_score(&self) -> i32 {
+        let mut score: i32 = 0;
+
+        let number_of_rows = self.rows.len();
+        let number_of_columns = self.rows[0].len();
+
+
+        for row in 0..number_of_rows {
+            for column in 0..number_of_columns {
+                if !self.drawn[row][column] {
+                    score += self.rows[row][column];
+                }
+            }
+        }
+
+        score
+    }
+}
+
+struct BingoSetup {
+    boards: Vec<BingoBoard>,
+    drawn_numbers: Vec<i32>,
+    elements_per_row: usize,
+}
+
+fn parse_txt_to_bingo_setup(path:&str) -> BingoSetup {
+    let file = File::open(path).unwrap();
+    let reader = BufReader::new(file);
+
+    let mut boards: Vec<BingoBoard> = Vec::<BingoBoard>::new();
+    let mut drawn_numbers: Vec<i32> = Vec::<i32>::new();
+    let mut board_lines_read: usize = 5;
+    let mut boards_read: usize = 0;
+    let mut elements_per_row: usize = 5;
+    for (index, line) in reader.lines().enumerate(){
+        let line = line.unwrap();
+
+        if index == 0 {
+            drawn_numbers = line.split(",").map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>();
+            continue;
+        }
+        
+        if board_lines_read == 5 {
+            board_lines_read = 0;
+            continue;
+        }
+        
+        if board_lines_read == 0 {
+            boards.push(BingoBoard{rows:Vec::<Vec<i32>>::new(), drawn:Vec::<Vec<bool>>::new()});
+            boards_read += 1;
+        }
+
+        let line_numbers = line.split_whitespace().map(|s| s.parse::<i32>().unwrap()).collect::<Vec<i32>>();
+        boards[boards_read - 1].rows.push(line_numbers);
+
+        let mut draw_numbers = Vec::<bool>::new();
+        draw_numbers.resize(elements_per_row, false);
+        boards[boards_read - 1].drawn.push(draw_numbers);
+   
+        board_lines_read += 1;
+    }
+
+   BingoSetup{boards, drawn_numbers, elements_per_row:elements_per_row}
 }
 
 fn parse_txt_file_to_int_vec(path: &str) -> Vec<i32>{
@@ -75,6 +192,78 @@ fn get_valid_index_values(valid_indices: &Vec<u32>, bit_message: &Vec<Vec<u32>>)
     }
 
     Vec::<u32>::new()
+}
+
+
+fn b_04_21(use_functional: bool) -> i32 {
+    let bingo_boards = parse_txt_to_bingo_setup("C:/Programming/advent_of_code_rust/input/day4.txt");
+    let mut boards = bingo_boards.boards;
+    let drawn_numbers = bingo_boards.drawn_numbers;
+    let mut winning_score: i32 = 0;
+    let mut winners: Vec<bool> = Vec::<bool>::new();
+    winners.resize(boards.len(), false);
+    let mut number_of_winners = 0;
+    let mut last_winner = 0;
+    let mut last_draw = 0;
+    for drawn_number in drawn_numbers {
+        for board_index in 0..boards.len(){
+            if winners[board_index] { continue; }
+
+            let board = &mut boards[board_index];
+            board.update(drawn_number);
+
+            let has_won = board.has_won();
+
+            if has_won {
+                winning_score = board.calculate_score();
+                winners[board_index] = true;
+                number_of_winners += 1;
+                if number_of_winners == boards.len() {
+                    last_winner = board_index;
+                }
+            }
+        }
+        if number_of_winners == boards.len() {
+            last_draw = drawn_number;
+            winning_score *= drawn_number;
+            break;
+        }
+    }
+
+    println!("Winning Score {}, Last winner: {}, Last draw {} ", winning_score, last_winner, last_draw);
+    winning_score
+}
+
+
+
+fn a_04_21(use_functional: bool) -> i32{
+    let mut bingo_boards = parse_txt_to_bingo_setup("C:/Programming/advent_of_code_rust/input/day4.txt");
+    let mut boards = bingo_boards.boards;
+    let mut drawn_numbers = bingo_boards.drawn_numbers;
+    let mut winner_found = false;
+    let mut winning_score: i32 = 0;
+    for drawn_number in drawn_numbers {
+        for board_index in 0..boards.len(){
+            let board = &mut boards[board_index];
+            board.update(drawn_number);
+
+            let has_won = board.has_won();
+
+            if has_won {
+                winning_score = board.calculate_score();
+                winner_found = true;
+                break;
+            }
+        }
+
+        if winner_found {
+            winning_score *= drawn_number;
+            break;
+        }
+    }
+
+    println!("Winning score was {}", winning_score);
+    winning_score
 }
 
 fn b_03_21(use_functional: bool) -> u32 {
