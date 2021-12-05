@@ -3,6 +3,8 @@
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
+use rayon::prelude::*;
+
 fn main() -> std::io::Result<()> {
     let now = std::time::Instant::now();
     a_05_21(false);
@@ -222,7 +224,7 @@ impl SteamMap {
         for row in 0..self.number_of_rows {
             for column in 0..self.number_of_columns {
                 let element = self.index(row, column);
-                if *element == -1 {
+                if *element == 0 {
                     print!(".");
                 } else {
                     print!("{}", *element);
@@ -237,49 +239,32 @@ impl SteamMap {
         let largest_x = if start_x < stop_x { stop_x } else { start_x };
         let smallest_y = if start_y < stop_y { start_y } else { stop_y };
         let largest_y = if start_y < stop_y { stop_y } else { start_y };
+
         if smallest_x != largest_x && smallest_y != largest_y {
+        
             let mut row_index = start_y as i32;
             let mut column_index = start_x as i32;
+            let modifier_row = if start_y < stop_y { 1 } else { -1 };
+            let modifier_column = if start_x < stop_x { 1 } else { -1 };
+        
             for row in smallest_y..largest_y+1 {
-                let element = self.mut_index(row_index as usize, column_index as usize);
-                if *element == -1 {
-                    *element = 1;
-                } else {
-                    *element += 1;
-                }
-
-                if start_y < stop_y {
-                    row_index += 1;
-                } else {
-                    row_index -= 1;
-                }
-
-                if start_x < stop_x {
-                    column_index += 1;
-                } else {
-                    column_index -= 1;
-                }
-
-
+                *self.mut_index(row_index as usize, column_index as usize) += 1;
+                row_index += modifier_row;
+                column_index += modifier_column;
             }    
+        
         } else if smallest_x == largest_x {
+            
             for row in smallest_y..largest_y+1 {
-                let element = self.mut_index(row, start_x);
-                if *element == -1 {
-                    *element = 1;
-                } else {
-                    *element += 1;
-                }
+                *self.mut_index(row, start_x) += 1;
             }    
+        
         } else {
+        
             for column in smallest_x..largest_x+1 {
-                let element = self.mut_index(start_y, column);
-                if *element == -1 {
-                    *element = 1;
-                } else {
-                    *element += 1;
-                }
+                *self.mut_index(start_y, column) += 1;
             }
+        
         }
     }
 
@@ -292,39 +277,27 @@ impl SteamMap {
         let largest_x = if start_x < stop_x { stop_x } else { start_x };
         let smallest_y = if start_y < stop_y { start_y } else { stop_y };
         let largest_y = if start_y < stop_y { stop_y } else { start_y };
+
         if smallest_x == largest_x {
             for row in smallest_y..largest_y+1 {
-                let element = self.mut_index(row, start_x);
-                if *element == -1 {
-                    *element = 1;
-                } else {
-                    *element += 1;
-                }
+                *self.mut_index(row, start_x) += 1;
             }    
         } else {
             for column in smallest_x..largest_x+1 {
-                let element = self.mut_index(start_y, column);
-                if *element == -1 {
-                    *element = 1;
-                } else {
-                    *element += 1;
-                }
+                *self.mut_index(start_y, column) += 1;
             }
         }
     }
 
     fn count_line_overlaps(&self, threshold: i32) -> usize {
-        let mut number_of_overlaps: usize = 0;
-        for row in 0..self.number_of_rows {
-            for column in 0..self.number_of_columns {
-                let element = self.index(row, column);
-                if threshold <= *element {
-                    number_of_overlaps += 1;
-                }
-            }
-        }
-        number_of_overlaps
+        self.elements.par_iter().filter(|element| threshold <= **element).count()
     }
+}
+
+fn initialize_steam_map(max_size: usize) -> SteamMap {
+    let mut elements = Vec::<i32>::new();
+    elements.resize(max_size * max_size, 0);
+    SteamMap {number_of_rows: max_size, number_of_columns: max_size, elements: elements}
 }
 
 fn parse_txt_file_to_steam_line_vec_usize(path: &str) -> Vec<usize> {
@@ -334,20 +307,23 @@ fn parse_txt_file_to_steam_line_vec_usize(path: &str) -> Vec<usize> {
     let mut lines = Vec::<usize>::new();
     lines.resize(number_of_lines * 4 as usize, 0);
     for line_index in 0..number_of_lines {
-        let tokens: Vec<usize> = strings[line_index][0].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
-        lines[line_index * 4] = tokens[0];
-        lines[line_index * 4 + 1] = tokens[1];
+        let first_tokens: Vec<usize> = strings[line_index][0].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+        let second_tokens: Vec<usize> = strings[line_index][2].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
 
-        let tokens: Vec<usize> = strings[line_index][2].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
-        lines[line_index * 4 + 2] = tokens[0];
-        lines[line_index * 4 + 3] = tokens[1];
+        lines[line_index * 4 + 0] = first_tokens[0];
+        lines[line_index * 4 + 1] = first_tokens[1];
+        lines[line_index * 4 + 2] = second_tokens[0];
+        lines[line_index * 4 + 3] = second_tokens[1];
     }
 
     lines
 }
 
 fn b_05_21(use_functional: bool) -> i32 {
+
     let steam_lines = parse_txt_file_to_steam_line_vec_usize("C:/Programming/advent_of_code_rust/input/day5.txt");
+    
+    let now = std::time::Instant::now();
     let max_value = steam_lines.iter().max().unwrap() + 1;
     let mut steam_map: SteamMap = initialize_steam_map(max_value as usize);
     let threshold = 2;
@@ -366,14 +342,13 @@ fn b_05_21(use_functional: bool) -> i32 {
     // steam_map.print();
 
     println!("Problem B: Number of overlaps {} ", number_of_overlaps);
+
+
+    let elapsed_time = now.elapsed();
+    println!("Running function b without file parsing took {} microseconds.", elapsed_time.as_micros());
     number_of_overlaps as i32
 }
 
-fn initialize_steam_map(max_size: usize) -> SteamMap {
-    let mut elements = Vec::<i32>::new();
-    elements.resize(max_size * max_size, -1);
-    SteamMap {number_of_rows: max_size, number_of_columns: max_size, elements: elements}
-}
 
 fn a_05_21(use_functional: bool) -> i32{
     let steam_lines = parse_txt_file_to_steam_line_vec_usize("C:/Programming/advent_of_code_rust/input/day5.txt");
@@ -841,7 +816,17 @@ fn a_01_21(use_functional: bool) -> usize{
 
 
 
+#[test]
+fn test_b_05_21() {
+    assert_eq!(b_05_21(true), 19349);
+    assert_eq!(b_05_21(false), 19349);
+}
 
+#[test]
+fn test_a_05_21() {
+    assert_eq!(a_05_21(true), 6007);
+    assert_eq!(a_05_21(false), 6007);
+}
 
 #[test]
 fn test_b_04_21() {
