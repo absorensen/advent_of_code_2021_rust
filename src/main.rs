@@ -5,12 +5,12 @@ use std::io::{prelude::*, BufReader};
 
 fn main() -> std::io::Result<()> {
     let now = std::time::Instant::now();
-    a_04_21(false);
+    a_05_21(false);
     let elapsed_time = now.elapsed();
     println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_04_21(false);    
+    b_05_21(false);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
@@ -199,6 +199,203 @@ fn get_valid_index_values(valid_indices: &Vec<u32>, bit_message: &Vec<Vec<u32>>)
     }
 
     Vec::<u32>::new()
+}
+
+struct SteamMap {
+    number_of_rows: usize,
+    number_of_columns: usize,
+    elements: Vec<i32>,
+}
+
+impl SteamMap {
+    #[inline(always)]
+    fn mut_index(&mut self, row:usize, column:usize) -> &mut i32 {
+        &mut self.elements[row * self.number_of_columns + column]
+    }
+
+    #[inline(always)]
+    fn index(&self, row:usize, column:usize) -> & i32 {
+        &self.elements[row * self.number_of_columns + column]
+    }
+
+    fn print(&self) -> () {
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                let element = self.index(row, column);
+                if *element == -1 {
+                    print!(".");
+                } else {
+                    print!("{}", *element);
+                }
+            }
+            print!("\n");
+        }
+    }
+
+    fn update(&mut self, start_x: usize, start_y: usize, stop_x: usize, stop_y: usize) -> () {
+        let smallest_x = if start_x < stop_x { start_x } else { stop_x };
+        let largest_x = if start_x < stop_x { stop_x } else { start_x };
+        let smallest_y = if start_y < stop_y { start_y } else { stop_y };
+        let largest_y = if start_y < stop_y { stop_y } else { start_y };
+        if smallest_x != largest_x && smallest_y != largest_y {
+            let mut row_index = start_y as i32;
+            let mut column_index = start_x as i32;
+            for row in smallest_y..largest_y+1 {
+                let element = self.mut_index(row_index as usize, column_index as usize);
+                if *element == -1 {
+                    *element = 1;
+                } else {
+                    *element += 1;
+                }
+
+                if start_y < stop_y {
+                    row_index += 1;
+                } else {
+                    row_index -= 1;
+                }
+
+                if start_x < stop_x {
+                    column_index += 1;
+                } else {
+                    column_index -= 1;
+                }
+
+
+            }    
+        } else if smallest_x == largest_x {
+            for row in smallest_y..largest_y+1 {
+                let element = self.mut_index(row, start_x);
+                if *element == -1 {
+                    *element = 1;
+                } else {
+                    *element += 1;
+                }
+            }    
+        } else {
+            for column in smallest_x..largest_x+1 {
+                let element = self.mut_index(start_y, column);
+                if *element == -1 {
+                    *element = 1;
+                } else {
+                    *element += 1;
+                }
+            }
+        }
+    }
+
+    fn simple_update(&mut self, start_x: usize, start_y: usize, stop_x: usize, stop_y: usize) -> () {
+        if start_x != stop_x && start_y != stop_y {
+            return;
+        }
+
+        let smallest_x = if start_x < stop_x { start_x } else { stop_x };
+        let largest_x = if start_x < stop_x { stop_x } else { start_x };
+        let smallest_y = if start_y < stop_y { start_y } else { stop_y };
+        let largest_y = if start_y < stop_y { stop_y } else { start_y };
+        if smallest_x == largest_x {
+            for row in smallest_y..largest_y+1 {
+                let element = self.mut_index(row, start_x);
+                if *element == -1 {
+                    *element = 1;
+                } else {
+                    *element += 1;
+                }
+            }    
+        } else {
+            for column in smallest_x..largest_x+1 {
+                let element = self.mut_index(start_y, column);
+                if *element == -1 {
+                    *element = 1;
+                } else {
+                    *element += 1;
+                }
+            }
+        }
+    }
+
+    fn count_line_overlaps(&self, threshold: i32) -> usize {
+        let mut number_of_overlaps: usize = 0;
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                let element = self.index(row, column);
+                if threshold <= *element {
+                    number_of_overlaps += 1;
+                }
+            }
+        }
+        number_of_overlaps
+    }
+}
+
+fn parse_txt_file_to_steam_line_vec_usize(path: &str) -> Vec<usize> {
+    let strings = parse_txt_file_to_str_tokens(path);
+    let number_of_lines = strings.len();
+
+    let mut lines = Vec::<usize>::new();
+    lines.resize(number_of_lines * 4 as usize, 0);
+    for line_index in 0..number_of_lines {
+        let tokens: Vec<usize> = strings[line_index][0].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+        lines[line_index * 4] = tokens[0];
+        lines[line_index * 4 + 1] = tokens[1];
+
+        let tokens: Vec<usize> = strings[line_index][2].split(",").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<usize>>();
+        lines[line_index * 4 + 2] = tokens[0];
+        lines[line_index * 4 + 3] = tokens[1];
+    }
+
+    lines
+}
+
+fn b_05_21(use_functional: bool) -> i32 {
+    let steam_lines = parse_txt_file_to_steam_line_vec_usize("C:/Programming/advent_of_code_rust/input/day5.txt");
+    let max_value = steam_lines.iter().max().unwrap() + 1;
+    let mut steam_map: SteamMap = initialize_steam_map(max_value as usize);
+    let threshold = 2;
+
+    let number_of_steam_lines = steam_lines.len() / 4;
+    for steam_index in 0..number_of_steam_lines {
+        let start_x = steam_lines[steam_index * 4 + 0];
+        let start_y = steam_lines[steam_index * 4 + 1];
+        let stop_x = steam_lines[steam_index * 4 + 2];
+        let stop_y = steam_lines[steam_index * 4 + 3];
+
+        steam_map.update(start_x, start_y, stop_x, stop_y);
+    }
+
+    let number_of_overlaps = steam_map.count_line_overlaps(threshold);
+    // steam_map.print();
+
+    println!("Problem B: Number of overlaps {} ", number_of_overlaps);
+    number_of_overlaps as i32
+}
+
+fn initialize_steam_map(max_size: usize) -> SteamMap {
+    let mut elements = Vec::<i32>::new();
+    elements.resize(max_size * max_size, -1);
+    SteamMap {number_of_rows: max_size, number_of_columns: max_size, elements: elements}
+}
+
+fn a_05_21(use_functional: bool) -> i32{
+    let steam_lines = parse_txt_file_to_steam_line_vec_usize("C:/Programming/advent_of_code_rust/input/day5.txt");
+    let max_value = steam_lines.iter().max().unwrap() + 1;
+    let mut steam_map: SteamMap = initialize_steam_map(max_value as usize);
+    let threshold = 2;
+
+    let number_of_steam_lines = steam_lines.len() / 4;
+    for steam_index in 0..number_of_steam_lines {
+        let start_x = steam_lines[steam_index * 4 + 0];
+        let start_y = steam_lines[steam_index * 4 + 1];
+        let stop_x = steam_lines[steam_index * 4 + 2];
+        let stop_y = steam_lines[steam_index * 4 + 3];
+
+        steam_map.simple_update(start_x, start_y, stop_x, stop_y);
+    }
+
+    let number_of_overlaps = steam_map.count_line_overlaps(threshold);
+    // steam_map.print();
+
+    println!("Problem A: Number of overlaps {} ", number_of_overlaps);
+    number_of_overlaps as i32
 }
 
 
