@@ -6,15 +6,15 @@ use std::io::{prelude::*, BufReader};
 use rayon::prelude::*;
 
 fn main() -> std::io::Result<()> {
-    let use_functional = false;
+    let use_functional = true;
 
     let now = std::time::Instant::now();
-    a_08_21(use_functional);
+    a_06_21(use_functional);
     let elapsed_time = now.elapsed();
     println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_08_21(use_functional);    
+    b_06_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
@@ -378,7 +378,15 @@ fn b_07_21(use_functional:bool) -> i64 {
     let (crabs, max_position, min_position) = parse_txt_file_to_crab_horizontals("C:/Programming/advent_of_code_rust/input/day7.txt");
 
     if use_functional {
-        (min_position..=max_position).into_par_iter().map(|position_index| crabs.iter().map(|x| nth_triangle_number((*x - position_index).abs())).sum()).min().unwrap()
+        (min_position..=max_position)
+            .into_par_iter()
+            .map(|position_index| 
+                crabs
+                    .iter()
+                    .map(|x| nth_triangle_number((*x - position_index).abs()))
+                    .sum())
+                    .min()
+                    .unwrap()
     } else {
         let mut total_fuel_cost : i64 = 0;
         let mut best_fuel_cost : i64 = i64::MAX;
@@ -463,30 +471,45 @@ fn b_06_21(use_functional: bool) -> usize {
 }
 
 
-fn a_06_21(use_functional: bool) -> i32 {
-    let mut lantern_fish : Vec<i32> = 
-    parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt")
-    .iter().map(|x| *x as i32).collect();
+fn a_06_21(use_functional: bool) -> usize {
+    if use_functional {
+        let lantern_fish = parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt");
+        let buckets = 9;
+        let mut lantern_fish_occurrences = int_vec_to_occurrences(buckets, &lantern_fish);
+        let simulate_number_of_days = 80;
 
-    let simulate_number_of_days = 80;
-    for day in 0..simulate_number_of_days {
-        let mut new_fish = Vec::<i32>::new();
+        for day in 0..simulate_number_of_days {
+            lantern_fish_occurrences.rotate_left(1);
+            lantern_fish_occurrences[6] += lantern_fish_occurrences[8];
+        }
+        
+        lantern_fish_occurrences.iter().sum()
 
-        for fish_index in 0..lantern_fish.len() {
-            lantern_fish[fish_index] -= 1;
-            if lantern_fish[fish_index] == -1 {
-                new_fish.push(8);
-                lantern_fish[fish_index] = 6;
+    } else {
+        let mut lantern_fish : Vec<i32> = 
+        parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt")
+        .iter().map(|x| *x as i32).collect();
+
+        let simulate_number_of_days = 80;
+        for day in 0..simulate_number_of_days {
+            let mut new_fish = Vec::<i32>::new();
+
+            for fish_index in 0..lantern_fish.len() {
+                lantern_fish[fish_index] -= 1;
+                if lantern_fish[fish_index] == -1 {
+                    new_fish.push(8);
+                    lantern_fish[fish_index] = 6;
+                }
             }
+
+            lantern_fish.append(&mut new_fish);
         }
 
-        lantern_fish.append(&mut new_fish);
+
+        println!("a_06_21:  Number of lantern fish: {} ", lantern_fish.len());
+
+        lantern_fish.len()
     }
-
-
-    println!("a_06_21:  Number of lantern fish: {} ", lantern_fish.len());
-
-    lantern_fish.len() as i32
 }
 
 
