@@ -6,17 +6,27 @@ use std::io::{prelude::*, BufReader};
 use rayon::prelude::*;
 
 fn main() -> std::io::Result<()> {
-    // let now = std::time::Instant::now();
-    // a_07_21(false);
-    // let elapsed_time = now.elapsed();
-    // println!("Running function a took {} microseconds.", elapsed_time.as_micros());
+    let use_functional = false;
 
     let now = std::time::Instant::now();
-    b_07_21(false);    
+    a_08_21(use_functional);
+    let elapsed_time = now.elapsed();
+    println!("Running function a took {} microseconds.", elapsed_time.as_micros());
+
+    let now = std::time::Instant::now();
+    b_08_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
+}
+
+fn b_08_21(use_functional:bool) -> i64 {
+    0
+}
+
+fn a_08_21(use_functional:bool) -> i64 {
+    0
 }
 
 struct BingoBoardElement {
@@ -327,14 +337,6 @@ fn parse_txt_file_to_lantern_fish(path:&str) -> Vec<usize> {
     contents.split(',').map(|s| s.parse::<usize>().unwrap()).collect()
 }
 
-fn parse_txt_file_to_crab_horizontals(path:&str) -> Vec<i64> {
-    let mut file = File::open(path).unwrap();
-    let mut contents = String::new();
-    file.read_to_string(&mut contents).unwrap();
-
-    contents.split(',').map(|s| s.parse::<i64>().unwrap()).collect()
-}
-
 fn int_vec_to_occurrences(buckets: usize, fish: &Vec<usize>) -> Vec<usize> {
     let mut occurences = Vec::<usize>::new();
     occurences.resize(buckets, 0);
@@ -346,81 +348,118 @@ fn int_vec_to_occurrences(buckets: usize, fish: &Vec<usize>) -> Vec<usize> {
     occurences
 }
 
-fn increasing_sums(input: i64) -> i64 {
-    let mut sum = 0;
-    for i in 1..input+1 {
-        sum += i;
+fn parse_txt_file_to_crab_horizontals(path:&str) -> (Vec<i64>, i64, i64) {
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let tokens: Vec::<&str> = contents.split(',').collect();
+    let mut crab_vector = Vec::<i64>::new();
+    crab_vector.resize(tokens.len(), 0);
+
+    let mut minimum_position : i64 = i64::MAX;
+    let mut maximum_position : i64 = i64::MIN;
+    for token_index in 0..tokens.len() {
+         crab_vector[token_index] = tokens[token_index].parse::<i64>().unwrap();
+         minimum_position = if crab_vector[token_index] < minimum_position { crab_vector[token_index] } else { minimum_position };
+         maximum_position = if maximum_position < crab_vector[token_index] { crab_vector[token_index] } else { maximum_position };
     }
-    sum
+
+    (crab_vector, maximum_position, minimum_position)
+}
+
+
+
+fn nth_triangle_number(input: i64) -> i64 {
+    (input * input + input) >> 1
 }
 
 fn b_07_21(use_functional:bool) -> i64 {
-    let crabs = parse_txt_file_to_crab_horizontals("C:/Programming/advent_of_code_rust/input/day7.txt");
+    let (crabs, max_position, min_position) = parse_txt_file_to_crab_horizontals("C:/Programming/advent_of_code_rust/input/day7.txt");
 
-    let max_position:i64 = *crabs.iter().max().unwrap();
-    let min_position:i64 = *crabs.iter().min().unwrap();
+    if use_functional {
+        (min_position..=max_position).into_par_iter().map(|position_index| crabs.iter().map(|x| nth_triangle_number((*x - position_index).abs())).sum()).min().unwrap()
+    } else {
+        let mut total_fuel_cost : i64 = 0;
+        let mut best_fuel_cost : i64 = i64::MAX;
+        let mut best_fuel_position : i64 = 0;
+        
+        for position_index in min_position..max_position+1{
+            total_fuel_cost = crabs.iter().map(|x| nth_triangle_number((*x - position_index).abs())).sum();
 
-    let mut total_fuel_cost : i64 = 0;
-    let mut best_fuel_cost : i64 = i64::MAX;
-    let mut best_fuel_position : i64 = 0;
-    
-    for position_index in min_position..max_position+1{
-        total_fuel_cost = crabs.iter().map(|x| increasing_sums((*x - position_index).abs())).sum();
-
-        if total_fuel_cost < best_fuel_cost {
-            best_fuel_cost = total_fuel_cost;
-            best_fuel_position = position_index;
+            if total_fuel_cost < best_fuel_cost {
+                best_fuel_cost = total_fuel_cost;
+                best_fuel_position = position_index;
+            }
         }
-    }
 
-    println!("b_07_21: Total fuel cost: {} at position: {} ", best_fuel_cost, best_fuel_position);
-    best_fuel_cost
+        println!("b_07_21: Total fuel cost: {} at position: {} ", best_fuel_cost, best_fuel_position);
+        best_fuel_cost
+    }
 }
 
 fn a_07_21(use_functional:bool) -> i64 {
-    let crabs = parse_txt_file_to_crab_horizontals("C:/Programming/advent_of_code_rust/input/day7.txt");
+    let (crabs, max_position, min_position) = parse_txt_file_to_crab_horizontals("C:/Programming/advent_of_code_rust/input/day7.txt");
 
-    let max_position:i64 = *crabs.iter().max().unwrap();
-    let min_position:i64 = *crabs.iter().min().unwrap();
-    let mut total_fuel_cost : i64 = 0;
-    let mut best_fuel_cost : i64 = i64::MAX;
-    let mut best_fuel_position : i64 = 0;
-    for position_index in min_position..max_position+1{
-        total_fuel_cost = crabs.iter().map(|x| (*x - position_index).abs()).sum();
-
-        if total_fuel_cost < best_fuel_cost {
-            best_fuel_cost = total_fuel_cost;
-            best_fuel_position = position_index;
+    if use_functional {
+        (min_position..=max_position).into_par_iter().map(|position_index| crabs.iter().map(|x| (*x - position_index).abs()).sum()).min().unwrap()
+    } else {
+        let mut total_fuel_cost : i64 = 0;
+        let mut best_fuel_cost : i64 = i64::MAX;
+        let mut best_fuel_position : i64 = 0;
+        for position_index in min_position..max_position+1{
+            total_fuel_cost = crabs.iter().map(|x| (*x - position_index).abs()).sum();
+    
+            if total_fuel_cost < best_fuel_cost {
+                best_fuel_cost = total_fuel_cost;
+                best_fuel_position = position_index;
+            }
         }
+    
+        println!("b_07_21: Total fuel cost: {} at position: {} ", best_fuel_cost, best_fuel_position);
+        best_fuel_cost
     }
-
-    println!("b_07_21: Total fuel cost: {} at position: {} ", best_fuel_cost, best_fuel_position);
-    best_fuel_cost
 }
 
 fn b_06_21(use_functional: bool) -> usize {
-    let lantern_fish = parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt");
-    let buckets = 9;
-    let mut lantern_fish_occurrences = int_vec_to_occurrences(buckets, &lantern_fish);
-    let simulate_number_of_days = 256;
-    let mut new_fish = 0;
-    for day in 0..simulate_number_of_days {
-        new_fish = lantern_fish_occurrences[0];
-        for fish_index in 1..lantern_fish_occurrences.len() {
-            lantern_fish_occurrences[fish_index - 1] = lantern_fish_occurrences[fish_index];
+
+    if use_functional {
+        let lantern_fish = parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt");
+        let buckets = 9;
+        let mut lantern_fish_occurrences = int_vec_to_occurrences(buckets, &lantern_fish);
+        let simulate_number_of_days = 256;
+
+        for day in 0..simulate_number_of_days {
+            lantern_fish_occurrences.rotate_left(1);
+            lantern_fish_occurrences[6] += lantern_fish_occurrences[8];
         }
-        lantern_fish_occurrences[6] += new_fish;
-        lantern_fish_occurrences[8] = new_fish;
+        
+        lantern_fish_occurrences.iter().sum()        
 
+    } else {
+        let lantern_fish = parse_txt_file_to_lantern_fish("C:/Programming/advent_of_code_rust/input/day6.txt");
+        let buckets = 9;
+        let mut lantern_fish_occurrences = int_vec_to_occurrences(buckets, &lantern_fish);
+        let simulate_number_of_days = 256;
+        let mut new_fish = 0;
+        for day in 0..simulate_number_of_days {
+            new_fish = lantern_fish_occurrences[0];
+            for fish_index in 1..lantern_fish_occurrences.len() {
+                lantern_fish_occurrences[fish_index - 1] = lantern_fish_occurrences[fish_index];
+            }
+            lantern_fish_occurrences[6] += new_fish;
+            lantern_fish_occurrences[8] = new_fish;
+    
+        }
+    
+        let mut sum: usize = 0;
+        for fish_index in 0..lantern_fish_occurrences.len() {
+            sum += lantern_fish_occurrences[fish_index];
+        }
+    
+        println!("b_06_21:  Number of lantern fish: {} ", sum);
+        sum
     }
-
-    let mut sum: usize = 0;
-    for fish_index in 0..lantern_fish_occurrences.len() {
-        sum += lantern_fish_occurrences[fish_index];
-    }
-
-    println!("b_06_21:  Number of lantern fish: {} ", sum);
-    sum
 }
 
 
