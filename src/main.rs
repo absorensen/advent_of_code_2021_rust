@@ -8,25 +8,241 @@ use rayon::prelude::*;
 fn main() -> std::io::Result<()> {
     let use_functional = true;
 
-    let now = std::time::Instant::now();
-    a_06_21(use_functional);
-    let elapsed_time = now.elapsed();
-    println!("Running function a took {} microseconds.", elapsed_time.as_micros());
+    // let now = std::time::Instant::now();
+    // a_08_21(use_functional);
+    // let elapsed_time = now.elapsed();
+    // println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_06_21(use_functional);    
+    b_08_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
 }
 
+#[derive(Clone, Copy, PartialEq)]
+struct Signal {
+    wires: i32,
+}
+
+impl Signal {
+
+    fn add_signal(&mut self, signal: i32){
+        self.wires |= 1 << signal;
+    }
+
+    fn active_signals(&self) -> i32 {
+        self.wires.count_ones() as i32
+    }
+
+    fn contains_all(&self, other_signal: i32) -> bool {
+        let new_values = other_signal & self.wires;
+        let number_of_ones = self.wires.count_ones(); 
+        let new_number_of_ones = new_values.count_ones();
+        new_number_of_ones == number_of_ones
+    }
+
+    fn signal_with_bits_removed(&self, other_signal: i32) -> Signal {
+        Signal{wires:(!other_signal) & self.wires}
+    }
+}
+
+fn parse_signals_and_outputs(path: &str) -> (Vec<Vec<Signal>>, Vec<Vec<Signal>>) {
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let lines: Vec<&str> = contents.lines().collect();
+
+    let mut signals : Vec<Vec<Signal>> = Vec::<Vec<Signal>>::new();
+    signals.resize(lines.len(), Vec::<Signal>::new() );
+    let mut outputs : Vec<Vec<Signal>> = Vec::<Vec<Signal>>::new();
+    outputs.resize(lines.len(), Vec::<Signal>::new() );
+    let mut line_index = 0;
+    let a_int: i32 = 'a' as i32;
+    for line in lines {
+        let halves : Vec<&str> = line.split('|').collect();
+        let signals_tokens: Vec<&str> = halves[0].split_whitespace().collect();
+        let mut signal_index = 0;
+        
+        signals[line_index].resize(signals_tokens.len(), Signal{wires: 0});
+        for signals_token in signals_tokens {
+            let signal_chars: Vec<char> = signals_token.chars().collect();
+            for signal_wire in signal_chars {
+                signals[line_index][signal_index].add_signal(signal_wire as i32 - a_int);
+            }
+
+            signal_index += 1;
+        }
+        
+        let outputs_tokens: Vec<&str> = halves[1].split_whitespace().collect();
+        let mut output_index = 0;
+        outputs[line_index].resize(outputs_tokens.len(), Signal{wires: 0});
+        for outputs_token in outputs_tokens {
+            let outputs_chars: Vec<char> = outputs_token.chars().collect();
+            for signal_wire in outputs_chars {
+                outputs[line_index][output_index].add_signal(signal_wire as i32 - a_int);
+            }
+
+            output_index += 1;
+        }
+
+        line_index += 1;
+    }
+
+
+    (signals, outputs)
+
+}
+
 fn b_08_21(use_functional:bool) -> i64 {
-    0
+    let (all_signals, all_outputs) = parse_signals_and_outputs("C:/Programming/advent_of_code_rust/input/day8.txt");
+
+    let mut global_sum = 0;
+    for all_signals_index in 0..all_signals.len(){
+        let signals = &all_signals[all_signals_index];
+        let outputs = &all_outputs[all_signals_index];
+        let mut signal_map: [Signal; 10] = [Signal{wires:0}; 10];
+
+        for digit in 0..10 {
+            for signal_index in 0..signals.len() {
+                let signal = signals[signal_index];
+                let signal_size = signal.active_signals();
+                if signal_size == 2 {
+                    if signal_map[1].wires == 0 {
+                        signal_map[1] = signal.clone();
+                    }
+                } else if signal_size == 4 {
+                    if signal_map[4].wires == 0 {
+                        signal_map[4] = signal.clone();
+                    }
+                } else if signal_size == 3{
+                    if signal_map[7].wires == 0 {
+                        signal_map[7] = signal.clone();
+                    }
+                } else if signal_size == 7 {
+                    if signal_map[8].wires == 0 {
+                        signal_map[8] = signal.clone();
+                    }
+                } else if signal_size == 5 {
+                    // case 3
+                    if signal_map[1].wires != 0 && signal_map[1].contains_all(signal.wires) {
+                        if signal_map[3].wires == 0 {
+                            signal_map[3] = signal.clone();
+                        }
+                    
+                    // case 5
+                    } else if signal_map[4].wires != 0 && signal_map[1].wires != 0 && signal_map[3].wires != 0 && signal_map[4].signal_with_bits_removed(signal_map[1].wires).contains_all(signal.wires) {
+                        if signal_map[5].wires == 0 {
+                            signal_map[5] = signal.clone();
+                        }
+                    
+                    // case 2
+                    } else if  signal_map[4].wires != 0 && signal_map[1].wires != 0 && signal_map[4].wires != 0 && !signal_map[1].contains_all(signal.wires) && !(signal_map[4].signal_with_bits_removed(signal_map[1].wires).contains_all(signal.wires)) {
+                        if signal_map[2].wires == 0 {
+                            signal_map[2] = signal.clone();
+                        }
+                    }
+    
+                } else if signal_size == 6 {
+                    // case 9
+                    if signal_map[4].wires != 0 && signal_map[5].wires != 0 && signal_map[4].contains_all(signal.wires) && signal_map[5].contains_all(signal.wires){
+                        if signal_map[9].wires == 0 {
+                            signal_map[9] = signal.clone();
+                        }
+                    
+                    // case 0
+                    } else if signal_map[4].wires != 0 && signal_map[5].wires != 0 && signal_map[9].wires != 0 && !signal_map[5].contains_all(signal.wires) && !signal_map[4].contains_all(signal.wires) {
+                        if signal_map[0].wires == 0 {
+                            signal_map[0] = signal.clone();
+                        }
+                    
+                    // case 6
+                    } else if signal_map[4].wires != 0 && signal_map[5].wires != 0 && signal_map[0].wires != 0 &&signal_map[5].contains_all(signal.wires) && !signal_map[4].contains_all(signal.wires) {
+                        if signal_map[6].wires == 0 {
+                            signal_map[6] = signal.clone();
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut sum = 0;
+        for output_index in 0..outputs.len() {
+            let signal = outputs[output_index];
+            let signal_size = signal.active_signals();
+
+            if signal.wires == signal_map[0].wires && signal.active_signals() == 6{
+                sum = sum * 10 + 0;
+            } else if signal.wires == signal_map[1].wires && signal_size == 2{
+                sum = sum * 10 + 1;
+            } else if signal.wires == signal_map[2].wires && signal_size == 5{
+                sum = sum * 10 + 2;
+            } else if signal.wires == signal_map[3].wires && signal_size == 5{
+                sum = sum * 10 + 3;
+            } else if signal.wires == signal_map[4].wires && signal_size == 4{
+                sum = sum * 10 + 4;
+            } else if signal.wires == signal_map[5].wires && signal_size == 5{
+                sum = sum * 10 + 5;
+            } else if signal.wires == signal_map[6].wires && signal_size == 6{
+                sum = sum * 10 + 6;
+            } else if signal.wires == signal_map[7].wires && signal_size == 3{
+                sum = sum * 10 + 7;
+            } else if signal.wires == signal_map[8].wires && signal_size == 7{
+                sum = sum * 10 + 8;
+            } else if signal.wires == signal_map[9].wires && signal_size == 6{
+                sum = sum * 10 + 9;
+            }
+
+        }
+        global_sum += sum;
+    }
+
+
+
+    println!("b_08_21: Global sum: {}", global_sum);
+    global_sum
 }
 
 fn a_08_21(use_functional:bool) -> i64 {
-    0
+    let (signals, outputs) = parse_signals_and_outputs("C:/Programming/advent_of_code_rust/input/day8.txt");
+    let mut signal_lengths: [i32; 9] = [0; 9];
+    signal_lengths[1] = 2;
+    signal_lengths[4] = 4;
+    signal_lengths[7] = 3;
+    signal_lengths[8] = 7;
+
+    let mut valid_outputs_counter = 0;
+
+
+    for output in outputs{
+        for signal in output {
+            let signal_size = signal.active_signals();
+
+            if signal_size == signal_lengths[1] {
+                valid_outputs_counter += 1;
+                continue;
+            }
+
+            if signal_size == signal_lengths[4] {
+                valid_outputs_counter += 1;
+                continue;
+            }
+
+            if signal_size == signal_lengths[7] {
+                valid_outputs_counter += 1;
+                continue;
+            }
+
+            if signal_size == signal_lengths[8] {
+                valid_outputs_counter += 1;
+                continue;
+            }
+        }
+    }
+    println!("a_08_21: Valid outputs counter: {}", valid_outputs_counter);
+    valid_outputs_counter
 }
 
 struct BingoBoardElement {
@@ -522,6 +738,7 @@ fn b_05_21(use_functional: bool) -> i32 {
     let mut steam_map: SteamMap = initialize_steam_map(max_value as usize);
     let threshold = 2;
 
+    // Do an iter version of this with chunk?
     let number_of_steam_lines = steam_lines.len() / 4;
     for steam_index in 0..number_of_steam_lines {
         let start_x = steam_lines[steam_index * 4 + 0];
@@ -1006,6 +1223,18 @@ fn a_01_21(use_functional: bool) -> usize{
         println!("a_01_21: Successfully found {} positive sum deltas", count);
         count
     }
+}
+
+#[test]
+fn test_b_08_21() {
+    assert_eq!(b_08_21(true), 1051087);
+    assert_eq!(b_08_21(false), 1051087);
+}
+
+#[test]
+fn test_a_08_21() {
+    assert_eq!(a_08_21(true), 530);
+    assert_eq!(a_08_21(false), 530);
 }
 
 #[test]
