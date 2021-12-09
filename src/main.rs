@@ -9,17 +9,264 @@ fn main() -> std::io::Result<()> {
     let use_functional = true;
 
     // let now = std::time::Instant::now();
-    // a_08_21(use_functional);
+    // a_09_21(use_functional);
     // let elapsed_time = now.elapsed();
     // println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_08_21(use_functional);    
+    b_09_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
 }
+
+
+struct HeightMap {
+    number_of_rows: usize,
+    number_of_columns: usize,
+    elements: Vec<i32>,
+    local_minima: Vec<(i32,usize,usize)>,
+    basins: Vec<Vec<(usize,usize)>>,
+}
+
+impl HeightMap {
+    #[inline(always)]
+    fn mut_index(&mut self, row:usize, column:usize) -> &mut i32 {
+        &mut self.elements[row * self.number_of_columns + column]
+    }
+
+    #[inline(always)]
+    fn index(&self, row:usize, column:usize) -> & i32 {
+        &self.elements[row * self.number_of_columns + column]
+    }
+
+    fn compute_basins(&mut self) -> () {
+        let mut basins_queue= Vec::<(usize, usize)>::new();
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                let central_value = self.index(row, column);
+                if *central_value == 9{ continue; }
+                basins_queue.push((row,column));
+            }
+        }
+
+        self.compute_local_minima();
+        
+        let mut basins = Vec::<Vec<(usize,usize)>>::new();
+        for (height, row, column) in &self.local_minima {
+            let mut new_basin = Vec::<(usize,usize)>::new();
+            new_basin.push((*row, *column));
+            basins.push(new_basin);
+        }
+
+        let mut loops_since_change = 0;
+        loop {
+            for basin_queue_index in 0..basins_queue.len(){
+                let (row, column) = basins_queue[basin_queue_index];
+                let mut found = false;
+
+                for basin_index in 0..basins.len(){
+                    if found {break;}
+                    for (basin_row, basin_column) in &basins[basin_index]{
+                        if basins[basin_index].contains(&(row, column)){
+                            found = true; // Was already a basin
+                        }
+                        break;
+                    }
+                }
+
+                if !found && column > 0 {
+                    for basin_index in 0..basins.len(){
+                        if found {break;}
+                        for (basin_row, basin_column) in &basins[basin_index]{
+                            if row == *basin_row && column-1 == *basin_column {
+                                found = true;
+                                if !basins[basin_index].contains(&(row, column)){
+                                    basins[basin_index].push((row,column));
+                                }
+                                break;
+        
+                            }
+                        }
+                    }
+                }
+    
+                if !found && column < self.number_of_columns - 1 {
+                    for basin_index in 0..basins.len(){
+                        if found {break;}
+                        for (basin_row, basin_column) in &basins[basin_index]{
+                            if row == *basin_row && column + 1 == *basin_column {
+                                found = true;
+                                if !basins[basin_index].contains(&(row, column)){
+                                    basins[basin_index].push((row,column));
+                                }
+                                break;
+        
+                            }
+                        }
+                    }
+                }
+    
+                if !found && row > 0 {
+                    for basin_index in 0..basins.len(){
+                        if found {break;}
+                        for (basin_row, basin_column) in &basins[basin_index]{
+                            if row - 1 == *basin_row && column == *basin_column {
+                                found = true;
+                                if !basins[basin_index].contains(&(row, column)){
+                                    basins[basin_index].push((row,column));
+                                }
+                                break;
+        
+                            }
+                        }
+                    }
+                }
+    
+                if !found && row < self.number_of_rows - 1 {
+                    for basin_index in 0..basins.len(){
+                        if found {break;}
+                        for (basin_row, basin_column) in &basins[basin_index]{
+                            if row + 1 == *basin_row && column == *basin_column {
+                                found = true;
+                                if !basins[basin_index].contains(&(row, column)){
+                                    basins[basin_index].push((row,column));
+                                }
+                                break;
+        
+                            }
+                        }
+                    }
+                }
+    
+                if found {
+                    basins_queue.remove(basin_queue_index);
+                    loops_since_change = 0;
+                    break;
+                }
+    
+            }
+
+            loops_since_change += 1;
+            if basins_queue.len() < 1 || loops_since_change > 10 {
+                break;
+            }
+        }
+
+
+        self.basins = basins;
+    }
+
+    fn compute_local_minima(&mut self) -> () {
+        let mut local_minima = Vec::<(i32, usize, usize)>::new();
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                let mut valid_directions = 0;
+                let mut smaller_than_directions = 0;
+                let central_value = self.index(row, column);
+                if column > 0 {
+                    valid_directions += 1;
+                    if self.index(row, column-1) > central_value {
+                        smaller_than_directions += 1;
+                    }
+                }
+
+                if column < self.number_of_columns - 1 {
+                    valid_directions += 1;
+                    if self.index(row, column + 1) > central_value {
+                        smaller_than_directions += 1;
+                    }
+                }
+
+                if row > 0 {
+                    valid_directions += 1;
+                    if self.index(row-1, column) > central_value {
+                        smaller_than_directions += 1;
+                    }
+                }
+
+                if row < self.number_of_rows - 1 {
+                    valid_directions += 1;
+                    if self.index(row + 1, column) > central_value {
+                        smaller_than_directions += 1;
+                    }
+                }
+
+                if smaller_than_directions == valid_directions {
+                    local_minima.push((central_value.clone(), row, column));
+                }
+            }
+        }
+
+        self.local_minima = local_minima;
+    }
+
+    fn compute_basin_scores(&self) -> i64 {
+        let mut biggest_values = Vec::<i64>::new();
+        biggest_values.resize(3, 0);
+
+        for basin_index in 0..self.basins.len() {
+            let basin_size = self.basins[basin_index].len() as i64;
+            let minimum_value = biggest_values.iter().min().unwrap();
+            let minimum_index = biggest_values.iter().position(|value| value == minimum_value).unwrap();
+            if minimum_value < &basin_size {
+                biggest_values[minimum_index] = basin_size
+            }
+        }
+  
+        biggest_values[0] * biggest_values[1] * biggest_values[2] 
+    }
+
+    fn compute_risk(&self) -> i64 {
+        let mut risk = 0;
+        for (height, row, column) in &self.local_minima {
+            risk += 1 + *height as i64;
+        }
+        risk
+    }
+}
+
+fn parse_txt_file_to_height_map(path: &str) -> HeightMap {
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let lines: Vec<&str> = contents.lines().collect();
+    let number_of_columns: usize = lines[0].chars().count();
+    let number_of_rows: usize = lines.len();
+
+    let mut elements = Vec::<i32>::new();
+    for line in lines {
+        for char in line.chars() {
+            elements.push(char as i32 - 0x30);
+        }
+    }
+    let local_minima = Vec::<(i32, usize, usize)>::new();
+    let basins = Vec::<Vec<(usize, usize)>>::new();
+
+    HeightMap{number_of_rows:number_of_rows, number_of_columns:number_of_columns, elements:elements, local_minima:local_minima, basins:basins}
+}
+
+fn b_09_21(use_functional:bool) -> i64 {
+    let mut height_map = parse_txt_file_to_height_map("C:/Programming/advent_of_code_rust/input/day9.txt");
+    height_map.compute_basins();
+    let scores = height_map.compute_basin_scores();
+
+    println!("b_09_21: Score: {}", scores);
+    scores
+}
+
+fn a_09_21(use_functional:bool) -> i64 {
+    let mut height_map = parse_txt_file_to_height_map("C:/Programming/advent_of_code_rust/input/day9.txt");
+    height_map.compute_local_minima();
+    let risk_score = height_map.compute_risk();
+
+    println!("a_09_21: Risk score: {}", risk_score);
+    risk_score
+}
+
+
 
 #[derive(Clone, Copy, PartialEq)]
 struct Signal {
@@ -1224,6 +1471,18 @@ fn a_01_21(use_functional: bool) -> usize{
         count
     }
 }
+
+// #[test]
+// fn test_b_09_21() {
+//     assert_eq!(b_09_21(true), 1051087);
+//     assert_eq!(b_09_21(false), 1051087);
+// }
+
+// #[test]
+// fn test_a_09_21() {
+//     assert_eq!(a_09_21(true), 530);
+//     assert_eq!(a_09_21(false), 530);
+// }
 
 #[test]
 fn test_b_08_21() {
