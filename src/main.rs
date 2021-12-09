@@ -8,10 +8,10 @@ use rayon::prelude::*;
 fn main() -> std::io::Result<()> {
     let use_functional = true;
 
-    // let now = std::time::Instant::now();
-    // a_09_21(use_functional);
-    // let elapsed_time = now.elapsed();
-    // println!("Running function a took {} microseconds.", elapsed_time.as_micros());
+    let now = std::time::Instant::now();
+    a_09_21(use_functional);
+    let elapsed_time = now.elapsed();
+    println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
     b_09_21(use_functional);    
@@ -1472,17 +1472,17 @@ fn a_01_21(use_functional: bool) -> usize{
     }
 }
 
-// #[test]
-// fn test_b_09_21() {
-//     assert_eq!(b_09_21(true), 1051087);
-//     assert_eq!(b_09_21(false), 1051087);
-// }
+#[test]
+fn test_b_09_21() {
+    assert_eq!(b_09_21(true), 1047744);
+    assert_eq!(b_09_21(false), 1047744);
+}
 
-// #[test]
-// fn test_a_09_21() {
-//     assert_eq!(a_09_21(true), 530);
-//     assert_eq!(a_09_21(false), 530);
-// }
+#[test]
+fn test_a_09_21() {
+    assert_eq!(a_09_21(true), 456);
+    assert_eq!(a_09_21(false), 456);
+}
 
 #[test]
 fn test_b_08_21() {
