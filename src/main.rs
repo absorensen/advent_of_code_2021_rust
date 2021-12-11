@@ -9,18 +9,172 @@ fn main() -> std::io::Result<()> {
     let use_functional = true;
 
     let now = std::time::Instant::now();
-    a_09_21(use_functional);
+    a_10_21(use_functional);
     let elapsed_time = now.elapsed();
     println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_09_21(use_functional);    
+    b_10_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
 }
 
+fn parse_syntax_checker_input (path: &str) -> Vec<Vec<char>> {
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let lines: Vec<&str> = contents.lines().collect();
+    let number_of_columns: usize = lines[0].chars().count();
+    let number_of_rows: usize = lines.len();
+
+    let mut input = Vec::<Vec<char>>::new();
+    for line in lines {
+        let chars:Vec<char> = line.chars().collect();
+        input.push(chars);
+    }
+
+    input
+}
+
+fn is_opening_char(candidate : char) -> bool {
+    match candidate {
+        '(' => return true,
+        '[' => return true,
+        '{' => return true,
+        '<' => return true,
+        _   => return false,
+    }
+}
+
+fn open_close_matcher(opening_char: char, new_char:char) -> bool {
+    match opening_char {
+        '(' => if new_char == ')' {return true;} else {return false;},
+        '[' => if new_char == ']' {return true;} else {return false;},
+        '{' => if new_char == '}' {return true;} else {return false;},
+        '<' => if new_char == '>' {return true;} else {return false;},
+        _ => return false,
+    }
+}
+
+fn compute_syntax_error_score(offending_chars: Vec<char>) -> usize {
+    let mut score = 0;
+
+    for char in offending_chars {
+        match char {
+            ')' => score += 3,
+            ']' => score += 57,
+            '}' => score += 1197,
+            '>' => score += 25137,
+            _   => println!("Found invalid offending char!"),
+        }   
+    }
+
+    score
+
+}
+
+fn get_autocomplete_scores(opening_chars: &mut Vec<char>) -> usize {
+    let mut score = 0;
+    while 0 < opening_chars.len() {
+        let opening_char = opening_chars.pop().unwrap();
+        match opening_char {
+            '(' => score = score * 5 + 1 ,
+            '[' => score = score * 5 + 2,
+            '{' => score = score * 5 + 3 ,
+            '<' => score = score * 5 + 4 ,
+            _ => score += 0 ,
+        }
+
+    }
+
+    score
+}
+
+fn b_10_21(use_functional:bool) -> usize {
+    let input = parse_syntax_checker_input("C:/Programming/advent_of_code_rust/input/day10.txt");
+
+    let number_of_lines = input.len();
+    let mut offending_chars: Vec<char> = Vec::<char>::new();
+    let mut incomplete_line_scores: Vec<usize> = Vec::<usize>::new();
+    for line_index in 0..number_of_lines {
+        let line = &input[line_index];
+        let mut stack = Vec::<char>::new();
+        let mut corrupted_line = false;
+        
+        for char in line {
+            if 0 < stack.len() {
+                let top_stack_char = stack.pop().unwrap();
+                if is_opening_char(*char) {
+                    stack.push(top_stack_char);
+                    stack.push(*char);
+                } else if !open_close_matcher(top_stack_char, *char) {
+                    offending_chars.push(*char);
+                    corrupted_line = true;
+                    break;
+                }
+            } else {
+                if is_opening_char(*char) {
+                    stack.push(*char); 
+                } else {
+                    offending_chars.push(*char);
+                    corrupted_line = true;
+                    break;
+                }
+            }
+        }
+
+        if !corrupted_line && 0 < stack.len() {
+            incomplete_line_scores.push(get_autocomplete_scores(&mut stack))
+        }
+    }
+    incomplete_line_scores.sort();
+    let scores = incomplete_line_scores[incomplete_line_scores.len() / 2];
+
+    println!("b_10_21: Score: {}", scores);
+    scores
+}
+
+fn a_10_21(use_functional:bool) -> usize {
+    let input = parse_syntax_checker_input("C:/Programming/advent_of_code_rust/input/day10.txt");
+
+    let number_of_lines = input.len();
+    let mut offending_chars: Vec<char> = Vec::<char>::new();
+    for line_index in 0..number_of_lines {
+        let line = &input[line_index];
+        let mut stack = Vec::<char>::new();
+        let mut corrupted_line = false;
+        
+        for char in line {
+            if stack.len() > 0 {
+                let top_stack_char = stack.pop().unwrap();
+                if is_opening_char(*char) {
+                    stack.push(top_stack_char);
+                    stack.push(*char);
+                } else if !open_close_matcher(top_stack_char, *char) {
+                    offending_chars.push(*char);
+                    corrupted_line = true;
+                    break;
+                }
+            } else {
+                if is_opening_char(*char) {
+                    stack.push(*char); 
+                } else {
+                    offending_chars.push(*char);
+                    corrupted_line = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    let scores = compute_syntax_error_score(offending_chars);
+
+    println!("a_10_21: Score: {}", scores);
+    scores
+}
 
 struct HeightMap {
     number_of_rows: usize,
@@ -1470,6 +1624,18 @@ fn a_01_21(use_functional: bool) -> usize{
         println!("a_01_21: Successfully found {} positive sum deltas", count);
         count
     }
+}
+
+#[test]
+fn test_b_10_21() {
+    assert_eq!(b_10_21(true), 3490802734);
+    assert_eq!(b_10_21(false), 3490802734);
+}
+
+#[test]
+fn test_a_10_21() {
+    assert_eq!(a_10_21(true), 294195);
+    assert_eq!(a_10_21(false), 294195);
 }
 
 #[test]
