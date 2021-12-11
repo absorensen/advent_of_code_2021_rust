@@ -9,17 +9,203 @@ fn main() -> std::io::Result<()> {
     let use_functional = true;
 
     let now = std::time::Instant::now();
-    a_10_21(use_functional);
+    a_11_21(use_functional);
     let elapsed_time = now.elapsed();
     println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_10_21(use_functional);    
+    b_11_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
 }
+
+struct DumboOctopusMap {
+    number_of_rows: usize,
+    number_of_columns: usize,
+    elements: Vec<u32>,
+    flashed: Vec<bool>,
+}
+
+impl DumboOctopusMap {
+    #[inline(always)]
+    fn mut_index(&mut self, row:usize, column:usize) -> &mut u32 {
+        &mut self.elements[row * self.number_of_columns + column]
+    }
+
+    #[inline(always)]
+    fn index(&self, row:usize, column:usize) -> & u32 {
+        &self.elements[row * self.number_of_columns + column]
+    }
+
+    fn round_step_1(&mut self) -> () {
+        for index in 0..self.number_of_columns*self.number_of_rows {
+            self.elements[index] += 1;
+            self.flashed[index] = false;
+        }
+    }
+
+    fn round_step_3(&mut self) -> () {
+        for index in 0..self.number_of_columns*self.number_of_rows {
+            if self.flashed[index] {
+                self.elements[index] = 0;
+            }
+            self.flashed[index] = false;
+        }
+    }
+
+    
+
+    fn print(&self) -> () {
+        for row in 0..self.number_of_rows {
+            for column in 0..self.number_of_columns {
+                let element = self.index(row, column);
+                print!("{}", *element);
+            }
+            print!("\n");
+        }
+    }
+
+    fn round_step_2(&mut self) -> u64 {
+        let mut number_of_flashes = 0;
+        for row_index in 0..self.number_of_rows {
+            for column_index in 0..self.number_of_columns {
+                if !self.flashed[row_index * self.number_of_columns + column_index] && *self.index(row_index, column_index) > 9 {
+                    self.flashed[row_index * self.number_of_columns + column_index] = true;
+                    number_of_flashes += 1;
+
+                    // 
+                    // Row - 1
+                    //
+                    if 0 < row_index && 0 < column_index { 
+                        *self.mut_index(row_index - 1, column_index - 1) += 1; 
+                    }
+                    
+                    if 0 < row_index { 
+                        *self.mut_index(row_index - 1, column_index) += 1; 
+                    }
+                    
+                    if 0 < row_index && column_index < self.number_of_columns - 1 { 
+                        *self.mut_index(row_index - 1, column_index + 1) += 1; 
+                    }
+                    
+                    // 
+                    // Row
+                    //
+                    if 0 < column_index { 
+                        *self.mut_index(row_index, column_index - 1) += 1; 
+                    }
+                    
+                    if column_index < self.number_of_columns - 1 { 
+                        *self.mut_index(row_index, column_index + 1) += 1; 
+                    }
+
+
+                   // 
+                    // Row + 1
+                    //
+                    if row_index < self.number_of_rows - 1 && 0 < column_index { 
+                        *self.mut_index(row_index + 1, column_index - 1) += 1; 
+                    }
+                    
+                    if row_index < self.number_of_rows - 1 { 
+                        *self.mut_index(row_index + 1, column_index) += 1; 
+                    }
+                    
+                    if row_index < self.number_of_rows - 1 && column_index < self.number_of_columns - 1 { 
+                        *self.mut_index(row_index + 1, column_index + 1) += 1; 
+                    }
+                }
+            }
+        }
+
+        number_of_flashes
+    }
+
+
+}
+
+fn parse_dumbo_octopus_input(path:&str) -> DumboOctopusMap {
+    const RADIX: u32 = 10;
+
+
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let lines: Vec<&str> = contents.lines().collect();
+    let number_of_columns: usize = lines[0].chars().count();
+    let number_of_rows: usize = lines.len();
+
+    let mut elements = Vec::<u32>::new();
+
+    for line in lines {
+        elements.append(& mut line.chars().map(|c| c.to_digit(RADIX).unwrap()).collect::<Vec<u32>>());
+
+    }
+
+    let mut flashed:Vec<bool> = Vec::<bool>::new();
+    flashed.resize(elements.len(), false);
+
+    DumboOctopusMap{number_of_rows:number_of_rows, number_of_columns:number_of_columns, elements:elements, flashed:flashed}
+}
+
+fn b_11_21(use_functional:bool) -> usize {
+    let mut octopi = parse_dumbo_octopus_input("C:/Programming/advent_of_code_rust/input/day11.txt");
+    let number_of_steps = 10000;
+    let mut number_of_flashes = 0;
+    let mut first_step_with_all_flash = 0;
+
+    for step_index in 0..number_of_steps {
+        let mut total_flashes_this_step = 0;
+        octopi.round_step_1();
+
+
+        let mut change_found = true;
+        while change_found {
+            let new_flashes = octopi.round_step_2();
+            change_found = new_flashes != 0;
+            number_of_flashes += new_flashes;
+            total_flashes_this_step += new_flashes;
+        }
+        
+        octopi.round_step_3();
+
+        if total_flashes_this_step == (octopi.number_of_rows * octopi.number_of_columns) as u64 {
+            first_step_with_all_flash = step_index + 1;
+            break;
+        }
+    }
+
+    println!("b_11_21: First step with all flash: {}", first_step_with_all_flash);
+    first_step_with_all_flash
+}
+
+fn a_11_21(use_functional:bool) -> u64 {
+    let mut octopi = parse_dumbo_octopus_input("C:/Programming/advent_of_code_rust/input/day11.txt");
+    let number_of_steps = 100;
+    let mut number_of_flashes = 0;
+
+    for step_index in 0..number_of_steps {
+
+        octopi.round_step_1();
+
+
+        let mut change_found = true;
+        while change_found {
+            let new_flashes = octopi.round_step_2();
+            change_found = new_flashes != 0;
+            number_of_flashes += new_flashes;
+        }
+
+        octopi.round_step_3();
+    }
+
+    println!("a_11_21: Number of flashes: {}", number_of_flashes);
+    number_of_flashes
+}
+
 
 fn parse_syntax_checker_input (path: &str) -> Vec<Vec<char>> {
     let mut file = File::open(path).unwrap();
