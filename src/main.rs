@@ -9,16 +9,261 @@ fn main() -> std::io::Result<()> {
     let use_functional = true;
 
     let now = std::time::Instant::now();
-    a_11_21(use_functional);
+    a_12_21(use_functional);
     let elapsed_time = now.elapsed();
     println!("Running function a took {} microseconds.", elapsed_time.as_micros());
 
     let now = std::time::Instant::now();
-    b_11_21(use_functional);    
+    b_12_21(use_functional);    
     let elapsed_time = now.elapsed();
     println!("Running function b took {} microseconds.", elapsed_time.as_micros());
 
     Ok(())
+}
+
+struct GraphNode {
+    name: String,
+    index: usize,
+    connections: Vec<usize>,
+    is_start: bool,
+    is_end: bool,
+    big_cave: bool,
+}
+
+struct Graph {
+    nodes: Vec<GraphNode>,
+    start_index: usize,
+    end_index: usize,
+}
+
+impl Graph {
+
+    fn generate_more_complicated_paths(&self) -> Vec<Vec<usize>> {
+        let mut valid_paths = Vec::<Vec<usize>>::new();
+        let mut processing_queue = Vec::<Vec<usize>>::new();
+
+        let mut first_path = Vec::<usize>::new();
+        first_path.push(self.start_index);
+        processing_queue.push(first_path);
+
+        while 0 < processing_queue.len() {
+            let path: Vec<usize> = processing_queue.pop().unwrap();
+            
+            let mut path_found = false;
+            let last_path_node_index = path[path.len()-1];
+            let connections = &self.nodes[last_path_node_index].connections;
+            for connection_index in 0..connections.len() {
+                let connection = connections[connection_index];
+                if self.is_valid_node_b(&path, connection) {
+                    path_found = true;
+
+                    let mut split_path = path.clone();
+                    split_path.push(connection);
+
+                    if self.is_complete_path(&split_path,self.end_index) {
+                        valid_paths.push(split_path); 
+                     } else {
+                        processing_queue.push(split_path);
+                     }
+                } else {
+                    if path_found && self.is_valid_node_b(&path, connection) {
+                        let mut split_path = self.split(&path);
+                        split_path.push(connection);
+                        processing_queue.push(split_path);
+
+                        if self.is_complete_path(&path, self.end_index) {
+                            valid_paths.push(path.clone()); 
+                        } else {
+                            processing_queue.push(path.clone());
+                        }
+                    }
+                }
+            }
+        } 
+        
+
+        valid_paths
+    }
+
+    fn generate_paths(&self) -> Vec<Vec<usize>> {
+        let mut valid_paths = Vec::<Vec<usize>>::new();
+        let mut processing_queue = Vec::<Vec<usize>>::new();
+
+        let mut first_path = Vec::<usize>::new();
+        first_path.push(self.start_index);
+        processing_queue.push(first_path);
+
+        while 0 < processing_queue.len() {
+            let path: Vec<usize> = processing_queue.pop().unwrap();
+            
+            let mut path_found = false;
+            let last_path_node_index = path[path.len()-1];
+            let connections = &self.nodes[last_path_node_index].connections;
+            for connection_index in 0..connections.len() {
+                let connection = connections[connection_index];
+                if self.is_valid_node(&path, connection) {
+                    path_found = true;
+
+                    let mut split_path = path.clone();
+                    split_path.push(connection);
+
+                    if self.is_complete_path(&split_path,self.end_index) {
+                        valid_paths.push(split_path); 
+                     } else {
+                        processing_queue.push(split_path);
+                     }
+                } else {
+                    if path_found && self.is_valid_node(&path, connection) {
+                        let mut split_path = self.split(&path);
+                        split_path.push(connection);
+                        processing_queue.push(split_path);
+
+                        if self.is_complete_path(&path, self.end_index) {
+                            valid_paths.push(path.clone()); 
+                        } else {
+                            processing_queue.push(path.clone());
+                        }
+                    }
+                }
+            }
+        } 
+        
+
+        valid_paths
+    }
+
+    fn is_match(&self, path: &Vec<usize>, other_path: &Vec<usize>) -> bool {
+        if path.len() != other_path.len() {
+            return false;
+        }
+
+        for node_index in 0..self.nodes.len() {
+            if path[node_index] != other_path[node_index] {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    fn split(&self, path: &Vec<usize>) -> Vec<usize> {
+        path.clone()
+    } 
+
+    fn is_valid_node(&self, path: &Vec<usize>, new_node_index: usize) -> bool {
+        if path.contains(&new_node_index) && !self.nodes[new_node_index].big_cave {
+            return false
+        }
+        true
+    }
+
+    fn is_valid_node_b(&self, path: &Vec<usize>, new_node_index: usize) -> bool {
+        if path.contains(&new_node_index) {
+            if !self.nodes[new_node_index].big_cave && new_node_index != self.start_index && !self.contains_two_small_caves(path) {
+                return true
+            } else if path.contains(&new_node_index) && self.nodes[new_node_index].big_cave {
+                return true
+            } else {
+                return false
+            }
+        }
+        true
+    }
+
+    fn contains_two_small_caves(&self, path: &Vec<usize>) -> bool {
+        let mut found_small_caves = Vec::<usize>::new();
+        for node_index in 0..path.len() {
+            let node = path[node_index];
+            if found_small_caves.contains(&node) && node != self.end_index && node != self.start_index {
+                return true
+            }
+            if !self.nodes[node].big_cave && node != self.end_index && node != self.start_index {
+                found_small_caves.push(node);
+            }
+        }
+        false
+    }
+
+    fn is_complete_path(&self, path: &Vec<usize>, last_node_index: usize) -> bool {
+        let last_node = path.last().unwrap();
+        if *last_node == last_node_index {
+            return true;
+        }
+
+        false
+    }
+}
+
+
+fn parse_txt_to_graph(path: &str) -> Graph {
+    let mut file = File::open(path).unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents).unwrap();
+
+    let mut nodes = Vec::<GraphNode>::new();
+    let lines: Vec<&str> = contents.lines().collect();
+
+    let mut index_counter: usize = 0;
+    let mut graph_start_index: usize = 0;
+    let mut graph_end_index = 0;
+    for line in lines {
+        let tokens: Vec<&str> = line.split('-').collect();
+        let start_name = tokens[0].to_string();
+        let end_name = tokens[1].to_string();
+
+        let start_index_result = nodes.iter().position(|node| *node.name == start_name);
+        let mut start_index = 0;
+        if start_index_result == None {
+            let is_start = start_name == "start";
+            let is_end = start_name == "end";
+            nodes.push(GraphNode{name: start_name.clone(), index:index_counter, connections: Vec::<usize>::new(), is_start: is_start, is_end: is_end, big_cave: start_name.clone() == start_name.to_uppercase()});
+            start_index = index_counter;
+            if is_start { graph_start_index = start_index; }
+            if is_end { graph_end_index = start_index; }
+            index_counter += 1;
+        } else {
+            start_index = start_index_result.unwrap();
+        }
+
+        let end_index_result = nodes.iter().position(|node| *node.name == end_name);
+        let mut end_index = 0;
+        if end_index_result == None {
+            let is_start = end_name == "start";
+            let is_end = end_name == "end";
+            nodes.push(GraphNode{name: end_name.clone(), index:index_counter, connections: Vec::<usize>::new(), is_start: is_start, is_end: is_end, big_cave: end_name.clone() == end_name.to_uppercase()});
+            end_index = index_counter;
+            if is_start { graph_start_index = end_index; }
+            if is_end { graph_end_index = end_index; }
+            index_counter += 1;
+        } else {
+            end_index = end_index_result.unwrap();
+        }
+
+        nodes[start_index].connections.push(end_index);
+        nodes[end_index].connections.push(start_index);
+
+    }
+
+
+    Graph{nodes:nodes, start_index:graph_start_index, end_index:graph_end_index}
+}
+
+fn b_12_21(use_functional:bool) -> usize {
+    let mut graph = parse_txt_to_graph("C:/Programming/advent_of_code_rust/input/day12.txt");
+    let paths = graph.generate_more_complicated_paths();
+
+    let number_of_paths = paths.len();
+    println!("b_12_21: Number of paths: {}", number_of_paths);
+    number_of_paths
+}
+
+fn a_12_21(use_functional:bool) -> u64 {
+    let mut graph = parse_txt_to_graph("C:/Programming/advent_of_code_rust/input/day12.txt");
+    let paths = graph.generate_paths();
+
+    let number_of_paths = paths.len();
+    println!("a_12_21: Number of paths: {}", number_of_paths);
+    number_of_paths as u64
 }
 
 struct DumboOctopusMap {
